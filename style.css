@@ -16,8 +16,8 @@ body {
   align-items: flex-start;
 }
 
-h1 { margin: 0; font-size: 28px; letter-spacing: 0.2px; }
-.sub { margin: 6px 0 0; opacity: 0.85; max-width: 520px; }
+h1 { margin: 0; font-size: 28px; }
+.sub { margin: 6px 0 0; opacity: 0.85; max-width: 560px; }
 
 .hud { display: flex; gap: 10px; flex-wrap: wrap; }
 .pill {
@@ -26,7 +26,6 @@ h1 { margin: 0; font-size: 28px; letter-spacing: 0.2px; }
   padding: 8px 10px;
   border-radius: 999px;
   font-weight: 800;
-  backdrop-filter: blur(6px);
 }
 
 .main { margin-top: 14px; }
@@ -34,21 +33,16 @@ h1 { margin: 0; font-size: 28px; letter-spacing: 0.2px; }
 .canvasCard {
   border-radius: 18px;
   padding: 12px;
-  background: radial-gradient(1200px 600px at 50% 0%, rgba(123,97,255,0.22), rgba(0,0,0,0.0)),
+  background: radial-gradient(1200px 600px at 50% 0%, rgba(123,97,255,0.22), rgba(0,0,0,0)),
               rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 30px 80px rgba(0,0,0,0.55);
 }
 
-canvas { width: 100%; height: auto; display: block; border-radius: 14px; }
+#game { width: 100%; display: grid; place-items: center; }
+#game canvas { width: 100% !important; height: auto !important; border-radius: 14px; }
 
-.legend {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
+.legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .tag {
   font-size: 12px;
   padding: 6px 10px;
@@ -85,13 +79,12 @@ canvas { width: 100%; height: auto; display: block; border-radius: 14px; }
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: 18px;
   padding: 18px;
-  backdrop-filter: blur(10px);
   box-shadow: 0 40px 120px rgba(0,0,0,0.65);
 }
 
 .overlayText { line-height: 1.35; opacity: 0.92; white-space: pre-line; }
-
 .btnRow { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
 button {
   border: 0;
   padding: 10px 14px;
@@ -101,7 +94,11 @@ button {
   background: #eef2ff;
   color: #0b0f1a;
 }
-button.secondary { background: rgba(255,255,255,0.10); color: #eef2ff; border: 1px solid rgba(255,255,255,0.18); }
+button.secondary {
+  background: rgba(255,255,255,0.10);
+  color: #eef2ff;
+  border: 1px solid rgba(255,255,255,0.18);
+}
 button:active { transform: translateY(1px); }
 
 .tiny { margin-top: 12px; font-size: 12px; opacity: 0.75; }
