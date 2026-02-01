@@ -3,66 +3,120 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chemo Dash</title>
+  <title>The Long Way to Treatment</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="wrap">
-    <header class="top">
-      <div>
-        <h1>Chemo Dash</h1>
-        <p class="sub">Make it to your chemo appointment. Delays stack up.</p>
-      </div>
+  <header class="top">
+    <div class="brand">
+      <h1>The Long Way to Treatment</h1>
+      <p class="sub">
+        A digital board game about reaching cancer treatment while real barriers delay care.
+      </p>
+    </div>
 
-      <div class="hud">
-        <div class="pill">Score <span id="score">0</span></div>
-        <div class="pill">Coins <span id="coins">0</span></div>
-        <div class="pill">Shield <span id="shield">1</span></div>
-        <div class="pill">Time <span id="time">60</span>s</div>
-      </div>
-    </header>
+    <div class="hud">
+      <div class="pill">Turn: <span id="turnName">Player 1</span></div>
+      <div class="pill">Roll: <span id="lastRoll">-</span></div>
+      <div class="pill">Round: <span id="roundNum">1</span></div>
+    </div>
+  </header>
 
-    <main class="main">
-      <div class="canvasCard" id="gameWrap">
-        <div id="game"></div>
-      </div>
+  <main class="wrap">
+    <section class="leftCol">
+      <div class="card" id="setupCard">
+        <h2>Setup</h2>
+        <p class="help">
+          Pick players, then roll the die. First to reach <b>Treatment</b> wins.
+        </p>
 
-      <div class="legend">
-        <span class="tag">TRAFFIC + INSURANCE: jump</span>
-        <span class="tag">PAPERWORK: slide</span>
-        <span class="tag">BUS DELAY: avoid lane</span>
-        <span class="tag good">HELP: shield</span>
-        <span class="tag good">COIN: score</span>
-      </div>
-
-      <div class="controls">
-        <div class="keyRow">
-          <div class="key"><b>A / ←</b> lane left</div>
-          <div class="key"><b>D / →</b> lane right</div>
-          <div class="key"><b>Space</b> jump</div>
-          <div class="key"><b>Down</b> slide</div>
-          <div class="key"><b>H</b> use shield</div>
+        <div class="row">
+          <label>Players</label>
+          <select id="playerCount">
+            <option value="1">1 player</option>
+            <option value="2" selected>2 players</option>
+            <option value="3">3 players</option>
+            <option value="4">4 players</option>
+          </select>
         </div>
-        <p class="note">Mobile: swipe left/right, swipe up to jump, swipe down to slide.</p>
-      </div>
-    </main>
-  </div>
 
-  <div id="overlay" class="overlay">
-    <div class="panel">
-      <h2 id="title">Chemo Dash</h2>
-      <p id="text" class="overlayText"></p>
-      <div class="btnRow">
-        <button id="playBtn">Play</button>
-        <button id="howBtn" class="secondary">How to play</button>
+        <div id="nameFields" class="nameFields"></div>
+
+        <button id="startBtn">Start Game</button>
+        <p class="tiny">
+          This game is about systems and access. Delays are not your fault.
+        </p>
       </div>
-      <div class="tiny">
-        You are trying to reach chemo on time. Obstacles represent real barriers to care.
+
+      <div class="card hidden" id="actionCard">
+        <h2>Action</h2>
+
+        <div class="bigLine">
+          <div class="label">You landed on:</div>
+          <div class="value" id="landedText">-</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="bigLine">
+          <div class="label">Card:</div>
+          <div class="value" id="cardText">Roll to begin.</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="buttons">
+          <button id="rollBtn">Roll Die</button>
+          <button id="endTurnBtn" class="secondary" disabled>End Turn</button>
+        </div>
+
+        <p class="note" id="noteText">
+          Tip: Some delays affect everyone. Supports can block a delay.
+        </p>
+      </div>
+
+      <div class="card hidden" id="playersCard">
+        <h2>Players</h2>
+        <div id="playersList" class="playersList"></div>
+      </div>
+    </section>
+
+    <section class="rightCol">
+      <div class="boardCard">
+        <div class="boardTop">
+          <div class="legend">
+            <span class="tag start">Diagnosis</span>
+            <span class="tag delay">Delay</span>
+            <span class="tag support">Support</span>
+            <span class="tag checkpoint">Checkpoint</span>
+            <span class="tag end">Treatment</span>
+          </div>
+
+          <div class="legend2">
+            <span class="mini">Delays: insurance, paperwork, transport, work, childcare</span>
+            <span class="mini">Supports: navigator, rides, paid leave</span>
+          </div>
+        </div>
+
+        <div id="board" class="board" aria-label="Game board"></div>
+
+        <div class="footerLine">
+          <span id="statusLine">Press Start Game.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modalBox">
+      <h2 id="modalTitle">Winner</h2>
+      <p id="modalBody" class="modalBody"></p>
+      <div class="modalBtns">
+        <button id="restartBtn">Play Again</button>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
