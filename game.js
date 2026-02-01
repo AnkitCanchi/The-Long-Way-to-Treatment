@@ -1,9 +1,18 @@
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+// Chemo Dash runner using Phaser 3 (via CDN in index.html)
+const W = 960, H = 540;
+const lanes = [W * 0.35, W * 0.50, W * 0.65];
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const randi = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+
+let score = 0;
+let coins = 0;
+let shield = 1;
+let timeLeft = 60;
 
 const scoreEl = document.getElementById("score");
 const coinsEl = document.getElementById("coins");
-const helpsEl = document.getElementById("helps");
+const shieldEl = document.getElementById("shield");
 const timeEl = document.getElementById("time");
 
 const overlay = document.getElementById("overlay");
@@ -12,92 +21,10 @@ const textEl = document.getElementById("text");
 const playBtn = document.getElementById("playBtn");
 const howBtn = document.getElementById("howBtn");
 
-const W = canvas.width;
-const H = canvas.height;
-
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, t) => a + (b - a) * t;
-const rand = (a, b) => Math.random() * (b - a) + a;
-const randi = (a, b) => Math.floor(rand(a, b + 1));
-
-let running = false;
-let paused = false;
-
-let score = 0;
-let coins = 0;
-let helps = 1;
-let timeLeft = 60;
-
-let speedZ = 14;          // how fast the world comes at you
-let difficulty = 0;       // increases with time
-let shakeT = 0;
-
-const keys = {
-  left: false,
-  right: false,
-  down: false,
-  jump: false
-};
-
-// 3 lanes: -1, 0, 1
-let lane = 0;
-let laneTarget = 0;
-
-const player = {
-  y: 0,            // vertical offset for jump
-  vy: 0,
-  jumping: false,
-  sliding: false,
-  slideT: 0,
-  invulnT: 0
-};
-
-const world = {
-  t: 0,
-  roadWNear: 520,
-  roadWFar: 140,
-  horizonY: 120,
-  nearY: H - 40,
-  laneOffsets: [-1, 0, 1]
-};
-
-// Entities in Z space (0..1), z=1 is near player, z=0 is horizon
-const entities = [];
-const particles = [];
-const popups = []; // forced delays with message
-
-function resetGame() {
-  score = 0;
-  coins = 0;
-  helps = 1;
-  timeLeft = 60;
-
-  speedZ = 14;
-  difficulty = 0;
-
-  lane = 0;
-  laneTarget = 0;
-
-  player.y = 0;
-  player.vy = 0;
-  player.jumping = false;
-  player.sliding = false;
-  player.slideT = 0;
-  player.invulnT = 0;
-
-  entities.length = 0;
-  particles.length = 0;
-  popups.length = 0;
-
-  shakeT = 0;
-
-  updateHUD();
-}
-
 function updateHUD() {
   scoreEl.textContent = String(score);
   coinsEl.textContent = String(coins);
-  helpsEl.textContent = String(helps);
+  shieldEl.textContent = String(shield);
   timeEl.textContent = String(Math.max(0, Math.ceil(timeLeft)));
 }
 
@@ -106,673 +33,448 @@ function showOverlay(title, text) {
   textEl.textContent = text;
   overlay.classList.remove("hidden");
 }
-
 function hideOverlay() {
   overlay.classList.add("hidden");
 }
 
-function easeOutBack(t) {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-}
+class MainScene extends Phaser.Scene {
+  constructor() { super("main"); }
 
-function project(laneIndex, z) {
-  // z: 0 far, 1 near
-  const y = lerp(world.horizonY, world.nearY, z);
-  const roadW = lerp(world.roadWFar, world.roadWNear, z);
+  create() {
+    // Reset run
+    score = 0;
+    coins = 0;
+    shield = 1;
+    timeLeft = 60;
+    updateHUD();
 
-  const laneW = roadW / 3;
-  const xCenter = W / 2;
+    this.gameOver = false;
 
-  const x = xCenter + laneIndex * laneW * 0.62; // compress lanes for style
-  return { x, y, scale: lerp(0.25, 1.15, z) };
-}
+    // Background
+    this.add.rectangle(W / 2, H / 2, W, H, 0x0b0f1a);
+    this.glow = this.add.circle(W / 2, 90, 520, 0x7b61ff, 0.12);
 
-function spawnParticle(x, y, n = 10) {
-  for (let i = 0; i < n; i++) {
-    particles.push({
-      x, y,
-      vx: rand(-120, 120),
-      vy: rand(-220, -60),
-      a: 1,
-      r: rand(2, 5)
+    // Simple city parallax bars
+    this.city = [];
+    for (let i = 0; i < 16; i++) {
+      const bw = 40;
+      const bh = 80 + (i % 6) * 18;
+      const bx = i * 70;
+      const r = this.add.rectangle(bx, 175, bw, bh, 0xeef2ff, 0.16);
+      this.city.push(r);
+    }
+
+    // Road
+    this.road = this.add.graphics();
+
+    // Player
+    this.laneIndex = 1;
+    this.playerBaseY = H * 0.78;
+    this.player = this.add.rectangle(lanes[this.laneIndex], this.playerBaseY, 44, 70, 0xffffff, 0.95);
+    this.player.setStrokeStyle(4, 0x7b61ff, 0.35);
+
+    this.ring = this.add.circle(this.player.x, this.player.y - 20, 46, 0x23f5a3, 0.0);
+
+    this.vy = 0;
+    this.onGround = true;
+    this.sliding = false;
+
+    // Groups
+    this.obstacles = this.add.group();
+    this.pickups = this.add.group();
+
+    // Spawning and speed
+    this.spawnT = 0;
+    this.roadSpeed = 520;
+    this.t = 0;
+
+    // Controls
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keyA = this.input.keyboard.addKey("A");
+    this.keyD = this.input.keyboard.addKey("D");
+    this.keyH = this.input.keyboard.addKey("H");
+
+    // Touch swipe
+    this.swipe = { x: 0, y: 0 };
+    this.input.on("pointerdown", (p) => { this.swipe.x = p.x; this.swipe.y = p.y; });
+    this.input.on("pointerup", (p) => {
+      const dx = p.x - this.swipe.x;
+      const dy = p.y - this.swipe.y;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 40) this.changeLane(1);
+        if (dx < -40) this.changeLane(-1);
+      } else {
+        if (dy < -40) this.jump();
+        if (dy > 40) this.slide();
+      }
+    });
+
+    // Go text
+    const go = this.add.text(W / 2, H / 2, "GO!", {
+      fontFamily: "system-ui",
+      fontSize: "64px",
+      fontStyle: "900",
+      color: "#ffffff"
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: go,
+      alpha: 0,
+      scale: 1.25,
+      duration: 520,
+      ease: "Cubic.easeOut",
+      onComplete: () => go.destroy()
     });
   }
-}
 
-function addEntity(type, laneIndex, z = 0) {
-  entities.push({
-    type,
-    lane: laneIndex,
-    z,
-    hit: false,
-    // one-off behavior
-    stun: type === "paperwork",
-    slow: type === "bus",
-    trap: type === "childcare",
-    block: type === "traffic",
-    coin: type === "coin",
-    help: type === "help"
-  });
-}
+  drawRoad() {
+    this.road.clear();
 
-let spawnT = 0;
-function trySpawn(dt) {
-  spawnT -= dt;
-  if (spawnT > 0) return;
+    // Road trapezoid
+    this.road.fillStyle(0xffffff, 0.06);
+    this.road.beginPath();
+    this.road.moveTo(W * 0.42, H * 0.18);
+    this.road.lineTo(W * 0.58, H * 0.18);
+    this.road.lineTo(W * 0.78, H * 0.92);
+    this.road.lineTo(W * 0.22, H * 0.92);
+    this.road.closePath();
+    this.road.fillPath();
 
-  const base = clamp(0.55 - difficulty * 0.012, 0.26, 0.55);
-  spawnT = rand(base, base + 0.25);
-
-  // spawn coins often
-  if (Math.random() < 0.38) {
-    addEntity("coin", world.laneOffsets[randi(0, 2)], 0.05);
-    if (Math.random() < 0.25) addEntity("coin", world.laneOffsets[randi(0, 2)], 0.05);
-    return;
-  }
-
-  // help occasionally
-  if (Math.random() < 0.10) {
-    addEntity("help", world.laneOffsets[randi(0, 2)], 0.04);
-    return;
-  }
-
-  // obstacle mix
-  const roll = Math.random();
-  const ln = world.laneOffsets[randi(0, 2)];
-
-  if (roll < 0.28) addEntity("traffic", ln, 0.02);
-  else if (roll < 0.55) addEntity("bus", ln, 0.02);
-  else if (roll < 0.78) addEntity("paperwork", ln, 0.02);
-  else addEntity("childcare", ln, 0.02);
-
-  // popup sometimes, but not too frequent
-  if (Math.random() < 0.14 && popups.length === 0) {
-    const kind = Math.random() < 0.55 ? "Insurance call" : "Childcare conflict";
-    popups.push({ kind, t: 1.3, max: 1.3 });
-  }
-}
-
-function drawSky() {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, "#0b0f1a");
-  g.addColorStop(1, "#090c14");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
-
-  // glow
-  ctx.globalAlpha = 0.55;
-  const glow = ctx.createRadialGradient(W * 0.5, 80, 20, W * 0.5, 80, 520);
-  glow.addColorStop(0, "rgba(123,97,255,0.35)");
-  glow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
-  ctx.globalAlpha = 1;
-}
-
-function drawCityParallax(t) {
-  // two layers of buildings moving at different speeds
-  const layers = [
-    { y: world.horizonY + 70, h: 90, s: 14, a: 0.22 },
-    { y: world.horizonY + 110, h: 130, s: 26, a: 0.14 }
-  ];
-
-  for (const L of layers) {
-    ctx.globalAlpha = L.a;
-    ctx.fillStyle = "#eef2ff";
-    const offset = (t * L.s) % 120;
-    for (let i = -2; i < 12; i++) {
-      const x = i * 120 - offset;
-      const w = 70;
-      const hh = L.h + (i % 4) * 25;
-      ctx.fillRect(x, L.y - hh, w, hh);
+    // Lane lines
+    this.road.lineStyle(4, 0xffffff, 0.12);
+    const laneXTop = [W * 0.47, W * 0.50, W * 0.53];
+    const laneXBot = [W * 0.35, W * 0.50, W * 0.65];
+    for (let i = 0; i < 3; i++) {
+      if (i === 0 || i === 2) {
+        this.road.beginPath();
+        this.road.moveTo(laneXTop[i], H * 0.18);
+        this.road.lineTo(laneXBot[i], H * 0.92);
+        this.road.strokePath();
+      }
     }
-    ctx.globalAlpha = 1;
-  }
-}
 
-function drawRoad() {
-  // road polygon
-  const farW = world.roadWFar;
-  const nearW = world.roadWNear;
-
-  const x0 = W / 2 - farW / 2;
-  const x1 = W / 2 + farW / 2;
-
-  const x2 = W / 2 + nearW / 2;
-  const x3 = W / 2 - nearW / 2;
-
-  ctx.fillStyle = "rgba(255,255,255,0.06)";
-  ctx.beginPath();
-  ctx.moveTo(x0, world.horizonY);
-  ctx.lineTo(x1, world.horizonY);
-  ctx.lineTo(x2, world.nearY);
-  ctx.lineTo(x3, world.nearY);
-  ctx.closePath();
-  ctx.fill();
-
-  // lane lines
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = 3;
-
-  for (let i = 1; i <= 2; i++) {
-    const zA = 0.0, zB = 1.0;
-    const yA = lerp(world.horizonY, world.nearY, zA);
-    const yB = lerp(world.horizonY, world.nearY, zB);
-    const wA = lerp(farW, nearW, zA);
-    const wB = lerp(farW, nearW, zB);
-
-    const xA = W / 2 - wA / 2 + (wA / 3) * i;
-    const xB = W / 2 - wB / 2 + (wB / 3) * i;
-
-    ctx.beginPath();
-    ctx.moveTo(xA, yA);
-    ctx.lineTo(xB, yB);
-    ctx.stroke();
+    // Motion streaks
+    this.road.fillStyle(0xffffff, 0.06);
+    for (let i = 0; i < 18; i++) {
+      const z = i / 18;
+      const y = Phaser.Math.Linear(H * 0.22, H * 0.92, z);
+      const w = Phaser.Math.Linear(20, 140, z);
+      const x = W / 2 + Math.sin(this.t * 2 + i) * Phaser.Math.Linear(10, 90, z) - w / 2;
+      this.road.fillRect(x, y, w, 3);
+    }
   }
 
-  // speed streaks
-  ctx.globalAlpha = 0.10;
-  ctx.fillStyle = "#eef2ff";
-  for (let i = 0; i < 18; i++) {
-    const z = (i / 18);
-    const y = lerp(world.horizonY + 10, world.nearY + 10, z);
-    const w = lerp(30, 160, z);
-    const x = W / 2 + Math.sin((world.t * 2) + i) * lerp(20, 120, z) - w / 2;
-    ctx.fillRect(x, y, w, 3);
-  }
-  ctx.globalAlpha = 1;
-}
-
-function drawEntity(e) {
-  const p = project(e.lane, e.z);
-  const size = 42 * p.scale;
-
-  // icon bubble background
-  ctx.save();
-  ctx.translate(p.x, p.y);
-
-  // shadow
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = "#000";
-  ctx.beginPath();
-  ctx.ellipse(0, 10 * p.scale, 24 * p.scale, 8 * p.scale, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // body
-  let fill = "rgba(238,242,255,0.92)";
-  if (e.type === "traffic") fill = "rgba(255, 70, 70, 0.92)";
-  if (e.type === "bus") fill = "rgba(255, 200, 60, 0.92)";
-  if (e.type === "paperwork") fill = "rgba(160, 120, 255, 0.92)";
-  if (e.type === "childcare") fill = "rgba(60, 210, 255, 0.92)";
-  if (e.type === "coin") fill = "rgba(255, 230, 120, 0.95)";
-  if (e.type === "help") fill = "rgba(35, 245, 163, 0.95)";
-
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.roundRect(-size/2, -size, size, size, 14 * p.scale);
-  ctx.fill();
-
-  // icon glyph (simple)
-  ctx.fillStyle = "rgba(11,15,26,0.95)";
-  ctx.font = `${Math.floor(22 * p.scale)}px system-ui`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  let glyph = "■";
-  if (e.type === "traffic") glyph = "🚦";
-  if (e.type === "bus") glyph = "🚌";
-  if (e.type === "paperwork") glyph = "📄";
-  if (e.type === "childcare") glyph = "👶";
-  if (e.type === "coin") glyph = "🪙";
-  if (e.type === "help") glyph = "💼";
-
-  ctx.fillText(glyph, 0, -size/2);
-
-  // label near horizon only (helps readability)
-  if (e.z < 0.22) {
-    ctx.globalAlpha = 0.8;
-    ctx.font = `${Math.floor(12 * p.scale)}px system-ui`;
-    ctx.fillStyle = "rgba(238,242,255,0.9)";
-    ctx.fillText(
-      e.type === "paperwork" ? "PAPERWORK" :
-      e.type === "childcare" ? "CHILDCARE" :
-      e.type === "traffic" ? "TRAFFIC" :
-      e.type === "bus" ? "BUS DELAY" :
-      e.type === "coin" ? "COIN" : "HELP",
-      0, -size - (12 * p.scale)
-    );
-    ctx.globalAlpha = 1;
+  flash() {
+    const f = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0.12);
+    this.tweens.add({ targets: f, alpha: 0, duration: 140, onComplete: () => f.destroy() });
   }
 
-  ctx.restore();
-}
-
-function playerBox() {
-  // hitbox in projected space near player
-  const p = project(lane, 0.95);
-  const baseW = 52;
-  const baseH = player.sliding ? 44 : 74;
-
-  const x = p.x - (baseW / 2);
-  const y = p.y - baseH - 18 - player.y;
-
-  return { x, y, w: baseW, h: baseH };
-}
-
-function drawPlayer() {
-  const p = project(lane, 0.95);
-  const box = playerBox();
-
-  // glow outline
-  ctx.save();
-  ctx.globalAlpha = player.invulnT > 0 ? 0.35 : 0.18;
-  ctx.fillStyle = "rgba(123,97,255,1)";
-  ctx.beginPath();
-  ctx.ellipse(p.x, p.y + 8, 46, 14, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // character
-  ctx.fillStyle = "rgba(238,242,255,0.92)";
-  ctx.beginPath();
-  ctx.roundRect(box.x, box.y, box.w, box.h, 14);
-  ctx.fill();
-
-  // face
-  ctx.fillStyle = "rgba(11,15,26,0.9)";
-  ctx.fillRect(box.x + box.w - 18, box.y + 16, 8, 8);
-
-  // slide indicator
-  if (player.sliding) {
-    ctx.globalAlpha = 0.75;
-    ctx.fillStyle = "rgba(35,245,163,0.9)";
-    ctx.fillRect(box.x + 6, box.y + box.h - 10, box.w - 12, 6);
-    ctx.globalAlpha = 1;
+  changeLane(dir) {
+    if (this.gameOver) return;
+    this.laneIndex = clamp(this.laneIndex + dir, 0, 2);
+    this.tweens.add({
+      targets: this.player,
+      x: lanes[this.laneIndex],
+      duration: 120,
+      ease: "Cubic.easeOut"
+    });
   }
 
-  ctx.restore();
-}
-
-function collideEntity(e) {
-  // If entity is near player, check lane and vertical state
-  if (e.z < 0.86) return false;
-  if (e.lane !== lane) return false;
-
-  // For traffic and childcare: must jump to avoid
-  if (e.type === "traffic" || e.type === "childcare") {
-    const isJumpingHigh = player.y > 22;
-    return !isJumpingHigh;
+  jump() {
+    if (this.gameOver) return;
+    if (!this.onGround) return;
+    this.vy = -900;
+    this.onGround = false;
   }
 
-  // For paperwork: must slide to avoid (duck under)
-  if (e.type === "paperwork") {
-    return !player.sliding;
+  slide() {
+    if (this.gameOver) return;
+    if (!this.onGround) return;
+    if (this.sliding) return;
+
+    this.sliding = true;
+    this.player.height = 44;
+    this.player.y = this.playerBaseY + 14;
+
+    this.time.delayedCall(320, () => {
+      this.sliding = false;
+      this.player.height = 70;
+      this.player.y = this.playerBaseY;
+    });
   }
 
-  // For bus: can dodge by lane change or jump (jump works too)
-  if (e.type === "bus") {
-    const isJumpingHigh = player.y > 16;
-    return !isJumpingHigh;
+  spawnCoin() {
+    const lane = randi(0, 2);
+    const x = lanes[lane];
+    const y = H * 0.16;
+
+    const c = this.add.circle(x, y, 18, 0xffe678, 0.95);
+    c.setStrokeStyle(4, 0x000000, 0.18);
+    c.kind = "coin";
+    c.lane = lane;
+    this.pickups.add(c);
   }
 
-  return true;
-}
+  spawnHelp() {
+    const lane = randi(0, 2);
+    const x = lanes[lane];
+    const y = H * 0.16;
 
-function hitEffect(type) {
-  shakeT = 0.18;
-  spawnParticle(W/2, H*0.55, 14);
-}
+    const h = this.add.circle(x, y, 20, 0x23f5a3, 0.95);
+    const t = this.add.text(x, y, "HELP", {
+      fontFamily: "system-ui",
+      fontSize: "12px",
+      fontStyle: "900",
+      color: "#0b0f1a"
+    }).setOrigin(0.5);
 
-function applyHit(type) {
-  if (player.invulnT > 0) return;
-
-  if (type === "coin") {
-    coins += 1;
-    score += 10;
-    spawnParticle(W/2, H*0.62, 6);
-    updateHUD();
-    return;
+    h.kind = "help";
+    h.lane = lane;
+    h.label = t;
+    this.pickups.add(h);
   }
 
-  if (type === "help") {
-    helps += 1;
-    score += 25;
-    spawnParticle(W/2, H*0.62, 10);
-    updateHUD();
-    return;
+  spawnObstacle() {
+    const types = ["TRAFFIC", "BUS DELAY", "PAPERWORK", "INSURANCE"];
+    const type = types[randi(0, types.length - 1)];
+    const lane = randi(0, 2);
+
+    const x = lanes[lane];
+    const y = H * 0.18;
+
+    const color =
+      type === "TRAFFIC" ? 0xff3c3c :
+      type === "BUS DELAY" ? 0xffc84a :
+      type === "PAPERWORK" ? 0xa078ff :
+      0x46d2ff;
+
+    const r = this.add.rectangle(x, y, 92, 56, color, 0.95);
+    r.setStrokeStyle(4, 0x000000, 0.22);
+
+    const label = this.add.text(x, y, type, {
+      fontFamily: "system-ui",
+      fontSize: "14px",
+      fontStyle: "900",
+      color: "#0b0f1a"
+    }).setOrigin(0.5);
+
+    r.type = type;
+    r.lane = lane;
+    r.label = label;
+    this.obstacles.add(r);
   }
 
-  // Spend a help automatically if you have one
-  if (helps > 0) {
-    helps -= 1;
-    score = Math.max(0, score - 15);
-    player.invulnT = 1.0;
-    hitEffect(type);
-    updateHUD();
-    return;
+  end(win) {
+    this.gameOver = true;
+
+    const title = win ? "YOU MADE IT TO CHEMO" : "YOU MISSED THE APPOINTMENT";
+    const body = win
+      ? "Even with skill, delays still happen.\nSupports make it survivable."
+      : "Not because you played badly.\nBecause delays stacked unfairly.";
+
+    const action =
+      "\n\nWhat could help:\n• flexible clinic hours\n• reliable transportation\n• paid sick leave / caregiver support";
+
+    this.add.rectangle(W / 2, H / 2, 660, 280, 0x000000, 0.58)
+      .setStrokeStyle(2, 0xffffff, 0.18);
+
+    this.add.text(W / 2, H / 2 - 90, title, {
+      fontFamily: "system-ui",
+      fontSize: "26px",
+      fontStyle: "900",
+      color: "#ffffff"
+    }).setOrigin(0.5);
+
+    this.add.text(W / 2, H / 2 - 35, body + action, {
+      fontFamily: "system-ui",
+      fontSize: "16px",
+      color: "#e6eaff",
+      align: "center"
+    }).setOrigin(0.5);
+
+    const btn = this.add.text(W / 2, H / 2 + 95, "PLAY AGAIN", {
+      fontFamily: "system-ui",
+      fontSize: "18px",
+      fontStyle: "900",
+      color: "#0b0f1a",
+      backgroundColor: "#eef2ff",
+      padding: { x: 14, y: 10 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    btn.on("pointerdown", () => this.scene.restart());
   }
 
-  // No helps: bigger penalties
-  score = Math.max(0, score - 35);
-  timeLeft -= 7;
-  player.invulnT = 1.0;
-  hitEffect(type);
-  updateHUD();
-}
+  update(_, delta) {
+    if (this.gameOver) return;
 
-function drawTimeBar() {
-  const x = 26;
-  const y = H - 34;
-  const w = W - 52;
-  const h = 14;
+    const dt = delta / 1000;
+    this.t += dt;
 
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = "#eef2ff";
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 999);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+    // Road draw
+    this.drawRoad();
 
-  const pct = clamp(timeLeft / 60, 0, 1);
-  ctx.fillStyle = "rgba(35,245,163,0.85)";
-  ctx.beginPath();
-  ctx.roundRect(x, y, w * pct, h, 999);
-  ctx.fill();
+    // City parallax
+    for (const b of this.city) {
+      b.x -= 30 * dt;
+      if (b.x < -60) b.x = W + 60;
+    }
 
-  ctx.globalAlpha = 0.85;
-  ctx.fillStyle = "#eef2ff";
-  ctx.font = "700 12px system-ui";
-  ctx.fillText("Time to make it", x, y - 6);
-  ctx.globalAlpha = 1;
-}
+    // Controls
+    const leftPressed = this.cursors.left.isDown || this.keyA.isDown;
+    const rightPressed = this.cursors.right.isDown || this.keyD.isDown;
 
-function tickPopups(dt) {
-  if (popups.length === 0) return false;
-  const p = popups[0];
-  p.t -= dt;
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left) || Phaser.Input.Keyboard.JustDown(this.keyA)) this.changeLane(-1);
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right) || Phaser.Input.Keyboard.JustDown(this.keyD)) this.changeLane(1);
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) this.jump();
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) this.slide();
 
-  // still drains a bit of time
-  timeLeft -= dt * 0.65;
-
-  // dim + card
-  ctx.fillStyle = "rgba(0,0,0,0.45)";
-  ctx.fillRect(0, 0, W, H);
-
-  const bw = 560, bh = 180;
-  const bx = (W - bw) / 2, by = 90;
-
-  ctx.fillStyle = "rgba(255,255,255,0.08)";
-  ctx.strokeStyle = "rgba(255,255,255,0.14)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(bx, by, bw, bh, 18);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = "#eef2ff";
-  ctx.font = "900 22px system-ui";
-  ctx.fillText(p.kind, bx + 20, by + 40);
-
-  ctx.font = "16px system-ui";
-  ctx.globalAlpha = 0.9;
-  ctx.fillText("Press H to spend a Help and shorten this delay.", bx + 20, by + 78);
-  ctx.globalAlpha = 1;
-
-  // bar
-  const barX = bx + 20, barY = by + 110, barW = bw - 40, barH = 14;
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = "#eef2ff";
-  ctx.beginPath();
-  ctx.roundRect(barX, barY, barW, barH, 999);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  const pct = clamp(p.t / p.max, 0, 1);
-  ctx.fillStyle = "rgba(255,200,60,0.85)";
-  ctx.beginPath();
-  ctx.roundRect(barX, barY, barW * pct, barH, 999);
-  ctx.fill();
-
-  if (p.t <= 0) popups.shift();
-  return true;
-}
-
-function endGame(win) {
-  running = false;
-  paused = false;
-
-  const msg = win
-    ? "You made it.\n\nEven good planning can’t erase delays.\nSupports make the run survivable."
-    : "You missed treatment.\n\nNot because you are bad at the game.\nBecause delays stack unfairly.";
-
-  const action =
-    "\n\nWhat could help:\n• flexible clinic hours\n• reliable transit options\n• paid sick leave and caregiver support";
-
-  showOverlay(win ? "Made it" : "Missed it", msg + action);
-}
-
-function tutorialText() {
-  return (
-    "3-lane runner controls:\n" +
-    "Left/Right: change lane\n" +
-    "Space: jump\n" +
-    "Down: slide\n\n" +
-    "Obstacles are labeled as they approach.\nCollect 💼 Helps to block hits.\nCollect 🪙 Coins for score.\n\n" +
-    "Win: survive 60 seconds."
-  );
-}
-
-playBtn.addEventListener("click", () => start());
-howBtn.addEventListener("click", () => {
-  textEl.textContent = tutorialText();
-});
-
-function start() {
-  resetGame();
-  hideOverlay();
-  running = true;
-  last = performance.now();
-  requestAnimationFrame(loop);
-}
-
-// Input
-window.addEventListener("keydown", (e) => {
-  if (e.code === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = true;
-  if (e.code === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = true;
-  if (e.code === "ArrowDown") keys.down = true;
-  if (e.code === "Space") { e.preventDefault(); keys.jump = true; }
-
-  if (e.key === "p" || e.key === "P") if (running) paused = !paused;
-
-  if (e.key === "h" || e.key === "H") {
-    if (popups.length > 0 && helps > 0) {
-      helps -= 1;
-      popups[0].t = Math.min(popups[0].t, 0.25);
+    if (Phaser.Input.Keyboard.JustDown(this.keyH) && shield > 0) {
+      shield -= 1;
+      this.flash();
       updateHUD();
     }
-  }
-});
 
-window.addEventListener("keyup", (e) => {
-  if (e.code === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = false;
-  if (e.code === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = false;
-  if (e.code === "ArrowDown") keys.down = false;
-  if (e.code === "Space") keys.jump = false;
-});
+    // Gravity
+    if (!this.onGround) {
+      this.vy += 2400 * dt;
+      this.player.y += this.vy * dt;
+      if (this.player.y >= this.playerBaseY) {
+        this.player.y = this.playerBaseY;
+        this.vy = 0;
+        this.onGround = true;
+      }
+    }
 
-// Touch swipe
-let touchStartX = 0, touchStartY = 0;
-canvas.addEventListener("touchstart", (e) => {
-  const t = e.touches[0];
-  touchStartX = t.clientX;
-  touchStartY = t.clientY;
-}, { passive: true });
+    // Shield ring
+    this.ring.x = this.player.x;
+    this.ring.y = this.player.y - 20;
+    this.ring.setAlpha(shield > 0 ? 0.10 : 0.0);
 
-canvas.addEventListener("touchend", (e) => {
-  const t = e.changedTouches[0];
-  const dx = t.clientX - touchStartX;
-  const dy = t.clientY - touchStartY;
+    // Spawn cadence
+    this.spawnT -= dt;
+    if (this.spawnT <= 0) {
+      const elapsed = 60 - timeLeft;
+      const gap = clamp(0.65 - elapsed * 0.006, 0.32, 0.65);
+      this.spawnT = gap;
 
-  if (Math.abs(dx) > Math.abs(dy)) {
-    if (dx > 30) laneTarget = clamp(laneTarget + 1, -1, 1);
-    if (dx < -30) laneTarget = clamp(laneTarget - 1, -1, 1);
-  } else {
-    if (dy < -30) keys.jump = true;
-    if (dy > 30) keys.down = true;
-    setTimeout(() => { keys.down = false; }, 120);
-  }
-}, { passive: true });
+      const roll = Math.random();
+      if (roll < 0.38) {
+        this.spawnCoin();
+        if (Math.random() < 0.25) this.spawnCoin();
+      } else if (roll < 0.46) {
+        this.spawnHelp();
+      } else {
+        this.spawnObstacle();
+      }
+    }
 
-// Main loop
-let last = 0;
-function loop(ts) {
-  if (!running) return;
+    // Move objects down the road
+    const moveY = (this.roadSpeed + (60 - timeLeft) * 2.8) * dt;
 
-  const dt = clamp((ts - last) / 1000, 0, 0.05);
-  last = ts;
+    this.obstacles.getChildren().forEach(o => {
+      o.y += moveY;
+      o.label.x = o.x;
+      o.label.y = o.y;
 
-  if (paused) {
-    drawSky();
-    drawCityParallax(world.t);
-    drawRoad();
-    drawPlayer();
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#eef2ff";
-    ctx.font = "900 34px system-ui";
-    ctx.fillText("Paused", W/2 - 70, H/2);
-    requestAnimationFrame(loop);
-    return;
-  }
+      // Collision near player
+      if (Math.abs(o.y - this.player.y) < 40 && o.lane === this.laneIndex) {
+        const needSlide = o.type === "PAPERWORK";
+        const needJump = (o.type === "TRAFFIC" || o.type === "INSURANCE");
+        const ok =
+          (needSlide && this.sliding) ||
+          (needJump && !this.onGround) ||
+          (!needSlide && !needJump && o.type !== "BUS DELAY"); // bus delay is always bad if same lane
 
-  world.t += dt;
+        if (!ok) {
+          if (shield > 0) {
+            shield -= 1;
+            this.flash();
+          } else {
+            timeLeft -= 6;
+            this.flash();
+          }
+          score = Math.max(0, score - 10);
+        } else {
+          score += 12;
+        }
 
-  // Shake
-  let sx = 0, sy = 0;
-  if (shakeT > 0) {
-    shakeT -= dt;
-    sx = rand(-6, 6) * (shakeT / 0.18);
-    sy = rand(-4, 4) * (shakeT / 0.18);
-  }
+        updateHUD();
+        o.label.destroy();
+        o.destroy();
+      }
 
-  ctx.save();
-  ctx.translate(sx, sy);
+      if (o.y > H + 80) {
+        o.label.destroy();
+        o.destroy();
+      }
+    });
 
-  drawSky();
-  drawCityParallax(world.t);
-  drawRoad();
+    this.pickups.getChildren().forEach(p => {
+      p.y += moveY;
+      if (p.label) { p.label.x = p.x; p.label.y = p.y; }
 
-  // Difficulty ramp
-  difficulty += dt * 1.2;
-  speedZ = 14 + difficulty * 0.12;
+      const near = Math.abs(p.y - this.player.y) < 40 && Math.abs(p.x - this.player.x) < 70;
+      if (near) {
+        if (p.kind === "coin") { coins += 1; score += 8; this.flash(); }
+        if (p.kind === "help") { shield += 1; score += 15; this.flash(); }
+        updateHUD();
+        if (p.label) p.label.destroy();
+        p.destroy();
+      }
 
-  // Movement: approach player
-  for (const e of entities) e.z += dt * (speedZ * 0.045);
+      if (p.y > H + 80) {
+        if (p.label) p.label.destroy();
+        p.destroy();
+      }
+    });
 
-  // Spawn
-  if (popups.length === 0) trySpawn(dt);
+    // Timer and win/lose
+    timeLeft -= dt;
+    updateHUD();
 
-  // Lane changes, with a nice easing snap
-  if (keys.left) laneTarget = clamp(laneTarget - 1, -1, 1), keys.left = false;
-  if (keys.right) laneTarget = clamp(laneTarget + 1, -1, 1), keys.right = false;
+    if (timeLeft <= 0) {
+      this.end(false);
+      return;
+    }
 
-  const tLane = 1 - Math.exp(-dt * 18);
-  lane = lerp(lane, laneTarget, tLane);
-
-  // Jump physics
-  if (keys.jump && !player.jumping) {
-    player.vy = 520;
-    player.jumping = true;
-  }
-  keys.jump = false;
-
-  player.vy -= 1600 * dt;
-  player.y += player.vy * dt;
-  if (player.y <= 0) {
-    player.y = 0;
-    player.vy = 0;
-    player.jumping = false;
-  }
-
-  // Slide
-  if (keys.down && !player.sliding && !player.jumping) {
-    player.sliding = true;
-    player.slideT = 0.28;
-  }
-  if (player.sliding) {
-    player.slideT -= dt;
-    if (player.slideT <= 0) player.sliding = false;
-  }
-
-  // Invuln
-  if (player.invulnT > 0) player.invulnT -= dt;
-
-  // Draw entities sorted far->near for nice depth
-  entities.sort((a, b) => a.z - b.z);
-  for (const e of entities) drawEntity(e);
-
-  drawPlayer();
-
-  // Collisions and cleanup
-  for (const e of entities) {
-    if (!e.hit && collideEntity(e)) {
-      e.hit = true;
-      applyHit(e.type);
+    // Simple win: survive and get decent score
+    if (timeLeft <= 0.1 && score >= 220) {
+      this.end(true);
     }
   }
-  for (let i = entities.length - 1; i >= 0; i--) {
-    if (entities[i].z > 1.05 || entities[i].hit) entities.splice(i, 1);
-  }
-
-  // Particles
-  for (const p of particles) {
-    p.vy += 900 * dt;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    p.a -= dt * 1.6;
-  }
-  for (let i = particles.length - 1; i >= 0; i--) {
-    if (particles[i].a <= 0) particles.splice(i, 1);
-  }
-  for (const p of particles) {
-    ctx.globalAlpha = clamp(p.a, 0, 1);
-    ctx.fillStyle = "#eef2ff";
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  // Timer
-  timeLeft -= dt;
-  updateHUD();
-  drawTimeBar();
-
-  // Popup overlays
-  const inPopup = tickPopups(dt);
-
-  ctx.restore();
-
-  if (timeLeft <= 0) {
-    endGame(false);
-    return;
-  }
-
-  // Win condition: good score target
-  if (score >= 650) {
-    endGame(true);
-    return;
-  }
-
-  requestAnimationFrame(loop);
 }
 
-// Initial screen
-showOverlay("Chemo Dash",
-  "A 3-lane arcade runner.\n\n" +
-  "Make it to treatment on time while delays stack up.\n\n" +
-  "Press Play to start."
+const config = {
+  type: Phaser.AUTO,
+  parent: "game",
+  width: W,
+  height: H,
+  backgroundColor: "#0b0f1a",
+  scene: [MainScene]
+};
+
+let game = null;
+
+playBtn.addEventListener("click", () => {
+  hideOverlay();
+  if (!game) game = new Phaser.Game(config);
+  else game.scene.keys.main.scene.restart();
+});
+
+howBtn.addEventListener("click", () => {
+  showOverlay(
+    "How to play",
+    "Goal: make it to chemo by surviving the timer.\n\n" +
+    "A/Left and D/Right change lanes.\nSpace jumps.\nDown slides.\n\n" +
+    "TRAFFIC + INSURANCE: jump.\nPAPERWORK: slide.\nBUS DELAY: avoid that lane.\n\n" +
+    "Coins give score.\nHELP gives shield.\nH uses shield."
+  );
+});
+
+// Start screen
+showOverlay(
+  "Chemo Dash",
+  "You are trying to reach a chemo appointment on time.\n" +
+  "Delays represent real barriers to cancer care.\n\nPress Play."
 );
