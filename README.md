@@ -1,64 +1,131 @@
-# The Long Way to Treatment
+# Two Patients, One Diagnosis
 
-**The Long Way to Treatment** is a digital board game that shows how cancer patients face repeated delays before receiving treatment — not because of bad choices, but because of systemic barriers.
+An interactive simulation that shows how **non-medical barriers** like insurance, transportation, paperwork, and work schedules can dramatically delay cancer treatment — even when patients receive the same diagnosis.
 
-Players race to reach **Treatment**, but insurance reviews, paperwork errors, transportation problems, and work conflicts frequently push them backward. Support systems exist, but they are rare.
-
-This game is designed to be easy to understand, emotionally impactful, and grounded in real experiences.
+This project is designed to be **fast to understand, emotionally clear, and easy to demo**.
 
 ---
 
-## 🎯 Purpose
+## 💡 What This Is
 
-Cancer treatment access often depends on factors outside a patient’s control.
+Two patients receive the **same cancer diagnosis**.
 
-This game demonstrates:
-- how delays stack unfairly
-- how rare support systems dramatically change outcomes
-- why reaching treatment should not depend on luck
+They go through the **same steps** toward treatment.
 
-The system is the obstacle — not the patient.
+The only difference:
+- One patient has access to support systems
+- The other does not
 
----
+With each step, delays stack up based on real-world barriers.  
+The simulation makes one point clear:
 
-## How to Play
-
-1. Choose 1–4 players
-2. Roll the die on your turn
-3. Move along the board toward **Treatment**
-4. Follow the instructions on the space you land on
-
-### Space types:
-- **Delay**: insurance issues, paperwork, transport problems
-- **Support**: patient navigators, paid sick leave, reliable rides
-- **Checkpoint**: progress that can still be undone later
-- **Treatment**: the goal
-
-The first player to reach **Treatment** wins — but most players will experience multiple setbacks along the way.
+> **Outcomes are shaped by access, not effort.**
 
 ---
 
-## Key Takeaway
+## 🧠 Why This Matters
 
-Even when players make reasonable choices, delays are frequent and unavoidable.
+Many delays in cancer care are **not medical**.
+They come from:
+- Insurance approvals
+- Transportation issues
+- Missed work
+- Administrative backlog
+- Clinic capacity limits
 
-Support systems are powerful, but scarce.
-
-Reaching cancer treatment should not depend on luck.
-
----
-
-
----
-
-##  Notes for Judges
-
-This project prioritizes:
-- clarity over complexity
-- realism over abstraction
-- accessibility for all players
-
-The game is intentionally frustrating to reflect real-world barriers to care.
+This project visualizes how those delays compound — and how support systems reduce them.
 
 ---
 
+## 🎮 How It Works
+
+- Click **Next Step** to advance both patients at the same time
+- Each step may trigger a delay event
+- Delays add days and stress
+- Support tools reduce the impact of delays
+- At the end, both patients reach treatment — but at very different times
+
+There is **no waiting or countdown**. Everything resolves instantly to keep demos smooth.
+
+---
+
+## 🧩 Features
+
+- Side-by-side patient comparison
+- Real-world delay categories (insurance, admin, transport, work, clinic)
+- Support tools (navigator, transportation, paid leave)
+- Stress tracking
+- Delay breakdown visualization
+- Clear end-of-run summary showing inequity gap
+- Keyboard shortcuts for demos
+
+---
+
+## ⌨️ Controls
+
+- **Next Step** button — advance simulation
+- **Reset** — start over
+- **N** — next step
+- **R** — reset
+
+---
+
+## 🧪 Disclaimer
+
+This is a **simulation**, not a medical model.
+
+It is meant to:
+- Illustrate systemic barriers
+- Encourage discussion
+- Highlight inequities in access to care
+
+It does **not** predict individual outcomes.
+
+---
+
+## 🛠 Tech Stack
+
+- HTML
+- CSS
+- Vanilla JavaScript
+- No backend required
+- Runs entirely in the browser
+- GitHub Pages compatible
+
+---
+
+## 🚀 How to Run Locally
+
+1. Download or clone this repository
+2. Open `index.html` in a browser
+3. Click **Next Step** to begin
+
+No installation required.
+
+---
+
+## 🏆 Project Goal
+
+To create a tool that:
+- Is immediately understandable
+- Feels interactive, not preachy
+- Clearly communicates health equity issues
+- Works well in live demos and presentations
+
+---
+
+## 📌 Built For
+
+- Hackathons
+- Health equity challenges
+- Cancer advocacy demos
+- Classroom discussions
+- Policy conversations
+
+---
+
+## ✨ Key Takeaway
+
+**Both patients survive.  
+One waits much longer.  
+The difference is support.**
