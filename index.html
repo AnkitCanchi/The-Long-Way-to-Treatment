@@ -3,102 +3,215 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Long Way to Treatment</title>
+  <title>Two Patients, One Diagnosis</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="hudBar">
-    <div class="hudLeft">
-      <div class="title">The Long Way to Treatment</div>
-      <div class="subtitle">A digital board game about reaching cancer treatment while barriers delay care.</div>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Two Patients, One Diagnosis</h1>
+      <p>
+        Same diagnosis. Same care steps. Different support. Click <b>Next Step</b> to advance both patients together.
+        Delays stack. Supports reduce delays, but not everyone has them.
+      </p>
     </div>
 
-    <div class="hudRight">
-      <div class="chip">Turn: <span id="turnName">-</span></div>
-      <div class="chip">Roll: <span id="lastRoll">-</span></div>
-      <div class="chip">Round: <span id="roundNum">-</span></div>
+    <div class="topActions">
+      <button id="nextBtn" class="primary">Next Step</button>
+      <button id="fastBtn" class="ghost" title="Auto-advance until one reaches treatment">Auto Run</button>
+      <button id="resetBtn" class="ghost">Reset</button>
     </div>
   </header>
 
-  <main class="screen">
-    <section class="boardWrap">
-      <div class="boardHeader">
-        <div class="micro">
-          Spaces are hidden. You only learn what a space is after you land on it.
+  <main class="layout">
+    <section class="board">
+      <div class="boardTop">
+        <div class="pillRow">
+          <span class="pill">Pipeline: <b id="pipelineName">Cancer Care Path</b></span>
+          <span class="pill">Seed: <b id="seedText">-</b></span>
+          <span class="pill">Difficulty: <b id="diffText">Normal</b></span>
+          <span class="pill">Support Budget: <b id="budgetText">6</b></span>
+        </div>
+
+        <div class="hint">
+          Tip: Use the budget to apply supports. Policy levers affect both patients.
         </div>
       </div>
 
-      <div id="board" class="board" aria-label="Game board"></div>
+      <div class="split">
+        <section class="patient" id="patientA">
+          <div class="patientHead">
+            <div class="avatar a">A</div>
+            <div class="meta">
+              <div class="name">Patient A</div>
+              <div class="tag good">More support</div>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="k">Days</div><div class="v" id="daysA">0</div></div>
+              <div class="stat"><div class="k">Stress</div><div class="v" id="stressA">0</div></div>
+              <div class="stat"><div class="k">Step</div><div class="v" id="stepA">1/8</div></div>
+            </div>
+          </div>
 
-      <div class="boardFooter">
-        <div id="statusLine" class="statusLine">Press Start to begin.</div>
+          <div class="trackWrap">
+            <div class="track">
+              <div class="fill a" id="fillA"></div>
+            </div>
+            <div class="trackLabel" id="stepNameA">Diagnosis Confirmed</div>
+          </div>
+
+          <div class="cards">
+            <div class="card">
+              <div class="cardTitle">Supports (cost budget)</div>
+              <div class="toggles">
+                <label class="toggle"><input type="checkbox" id="navA" checked /> Patient navigator</label>
+                <label class="toggle"><input type="checkbox" id="rideA" checked /> Reliable transport</label>
+                <label class="toggle"><input type="checkbox" id="leaveA" checked /> Paid sick leave</label>
+                <label class="toggle"><input type="checkbox" id="pharmA" checked /> Pharmacy coordination</label>
+              </div>
+              <div class="mini">Toggles change delay odds and severity.</div>
+            </div>
+
+            <div class="card">
+              <div class="cardTitle">Spend Support Budget</div>
+              <div class="actionsGrid">
+                <button data-act="appealA" class="smallBtn">File Appeal (A)</button>
+                <button data-act="rideNowA" class="smallBtn">Call Ride (A)</button>
+                <button data-act="paperFixA" class="smallBtn">Fix Paperwork (A)</button>
+                <button data-act="stressCareA" class="smallBtn">Care Break (A)</button>
+              </div>
+              <div class="mini">Each click costs 1 budget. Removes or reduces the next delay.</div>
+            </div>
+
+            <div class="card logCard">
+              <div class="cardTitle">Event Feed</div>
+              <div id="logA" class="log"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="patient" id="patientB">
+          <div class="patientHead">
+            <div class="avatar b">B</div>
+            <div class="meta">
+              <div class="name">Patient B</div>
+              <div class="tag warn">Limited support</div>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="k">Days</div><div class="v" id="daysB">0</div></div>
+              <div class="stat"><div class="k">Stress</div><div class="v" id="stressB">0</div></div>
+              <div class="stat"><div class="k">Step</div><div class="v" id="stepB">1/8</div></div>
+            </div>
+          </div>
+
+          <div class="trackWrap">
+            <div class="track">
+              <div class="fill b" id="fillB"></div>
+            </div>
+            <div class="trackLabel" id="stepNameB">Diagnosis Confirmed</div>
+          </div>
+
+          <div class="cards">
+            <div class="card">
+              <div class="cardTitle">Supports (cost budget)</div>
+              <div class="toggles">
+                <label class="toggle"><input type="checkbox" id="navB" /> Patient navigator</label>
+                <label class="toggle"><input type="checkbox" id="rideB" /> Reliable transport</label>
+                <label class="toggle"><input type="checkbox" id="leaveB" /> Paid sick leave</label>
+                <label class="toggle"><input type="checkbox" id="pharmB" /> Pharmacy coordination</label>
+              </div>
+              <div class="mini">Try toggling supports on B and watch the gap shrink.</div>
+            </div>
+
+            <div class="card">
+              <div class="cardTitle">Spend Support Budget</div>
+              <div class="actionsGrid">
+                <button data-act="appealB" class="smallBtn">File Appeal (B)</button>
+                <button data-act="rideNowB" class="smallBtn">Call Ride (B)</button>
+                <button data-act="paperFixB" class="smallBtn">Fix Paperwork (B)</button>
+                <button data-act="stressCareB" class="smallBtn">Care Break (B)</button>
+              </div>
+              <div class="mini">Budget makes it feel like real triage.</div>
+            </div>
+
+            <div class="card logCard">
+              <div class="cardTitle">Event Feed</div>
+              <div id="logB" class="log"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="bottomRow">
+        <div class="chartCard">
+          <div class="cardTitle">Timeline (Days Waited)</div>
+          <canvas id="chart" width="900" height="180"></canvas>
+          <div class="mini">Each Next Step updates the timeline. Auto Run makes it demo-friendly.</div>
+        </div>
+
+        <div class="summaryCard">
+          <div class="cardTitle">Round Summary</div>
+          <div id="roundSummary" class="summaryBox">Click Next Step.</div>
+
+          <div class="achievements">
+            <div class="cardTitle">Badges</div>
+            <div id="badges" class="badgeRow"></div>
+          </div>
+
+          <div class="exportRow">
+            <button id="exportBtn" class="ghost">Copy Report JSON</button>
+          </div>
+        </div>
       </div>
     </section>
 
-    <aside class="side">
-      <div class="panel">
-        <div class="panelTop">
-          <div class="panelTitle">Action</div>
-          <div class="badgeRow">
-            <span class="badge">Auto resolves in <span id="autoIn">-</span>s</span>
-          </div>
+    <aside class="sidebar">
+      <div class="sideCard">
+        <div class="cardTitle">Settings</div>
+
+        <div class="field">
+          <label>Seed (same seed = same run)</label>
+          <input id="seedInput" placeholder="ex: demo123" />
         </div>
 
-        <div class="bigRow">
-          <div class="k">Landed on</div>
-          <div class="v" id="landedText">-</div>
+        <div class="field">
+          <label>Difficulty</label>
+          <input id="diff" type="range" min="1" max="5" value="3" />
+          <div class="mini">1 = easier, 5 = harsher delays</div>
         </div>
 
-        <div class="bigRow">
-          <div class="k">Revealed</div>
-          <div class="v" id="revealText">-</div>
+        <div class="field">
+          <label>Policy Levers (affect both patients)</label>
+          <label class="toggle"><input type="checkbox" id="polFastAuth" /> Fast-track prior authorization</label>
+          <label class="toggle"><input type="checkbox" id="polTransport" /> Transport voucher program</label>
+          <label class="toggle"><input type="checkbox" id="polNavigator" /> Navigator program expansion</label>
+          <label class="toggle"><input type="checkbox" id="polPharmacy" /> Pharmacy supply coordination</label>
         </div>
 
-        <div class="cardText" id="cardText">
-          Set players, then roll.
+        <div class="field">
+          <label>Support Budget (per run)</label>
+          <input id="budget" type="number" min="0" max="30" value="6" />
         </div>
 
-        <div class="btnRow">
-          <button id="rollBtn" disabled>Roll Die</button>
-          <button id="endTurnBtn" class="secondary" disabled>End Turn</button>
-        </div>
-
-        <div class="setup">
-          <div class="setupTitle">Setup</div>
-          <div class="setupRow">
-            <label>Players</label>
-            <select id="playerCount">
-              <option value="1">1</option>
-              <option value="2" selected>2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-            </select>
-          </div>
-          <div id="nameFields" class="nameFields"></div>
-          <button id="startBtn">Start Game</button>
-          <div class="tiny">
-            The system is the obstacle, not the patient. Supports are rare by design.
-          </div>
-        </div>
-
-        <div class="playersBox">
-          <div class="setupTitle">Players</div>
-          <div id="playersList" class="playersList"></div>
+        <button id="applySettings" class="primary">Apply Settings</button>
+        <div class="mini">
+          Judges love this: you can demonstrate how policy changes reduce delays.
         </div>
       </div>
     </aside>
   </main>
 
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modalBox">
-      <h2 id="modalTitle">Winner</h2>
-      <p id="modalBody" class="modalBody"></p>
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true">
+    <div class="modalCard">
+      <h2 id="modalTitle">Treatment Started</h2>
+      <p id="modalBody"></p>
       <div class="modalBtns">
-        <button id="restartBtn">Play Again</button>
+        <button id="closeModal" class="primary">Close</button>
+        <button id="playAgain" class="ghost">Play Again</button>
       </div>
     </div>
   </div>
 
-  <script src="game.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
