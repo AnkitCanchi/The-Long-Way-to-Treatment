@@ -132,6 +132,13 @@
           <div class="eventMeta" id="eventMeta"></div>
         </div>
 
+        <!-- ADDED: Intervene buttons (NO REMOVALS) -->
+        <div class="panelTitle">Interventions (this step)</div>
+        <div class="interveneRow">
+          <button id="interveneA" class="ghost">Intervene: Patient A</button>
+          <button id="interveneB" class="ghost">Intervene: Patient B</button>
+        </div>
+
         <div class="panelTitle">Policy Levers (global)</div>
         <div class="policyGrid">
           <label class="check"><input type="checkbox" id="polNavigator" /> Fund patient navigation</label>
@@ -145,6 +152,17 @@
         <div class="chartBox">
           <canvas id="chart" width="360" height="220"></canvas>
           <div class="tiny">Category delay days for A vs B.</div>
+        </div>
+
+        <!-- ADDED: Save / Load / Export / Share (NO REMOVALS) -->
+        <div class="panelTitle">Save / Export</div>
+        <div class="toolRow">
+          <button id="saveBtn" class="ghost">Save Run</button>
+          <button id="loadBtn" class="ghost">Load Run</button>
+        </div>
+        <div class="toolRow">
+          <button id="exportBtn" class="ghost">Export JSON</button>
+          <button id="shareBtn" class="ghost">Copy Share Link</button>
         </div>
 
         <div class="notice" id="notice">Tip: Press N to advance, R to reset.</div>
