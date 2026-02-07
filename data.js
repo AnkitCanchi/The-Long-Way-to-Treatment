@@ -11,7 +11,7 @@ window.STEPS = [
   "Start Treatment"
 ];
 
-// Category icons (kid friendly), adult meaning is in text
+// Category icons (kid-friendly)
 window.CAT = {
   INS: { name: "Insurance", ico: "🧾" },
   ADM: { name: "Paperwork", ico: "📄" },
@@ -21,14 +21,14 @@ window.CAT = {
   CLN: { name: "Clinic", ico: "🏥" }
 };
 
-// Event deck: baseDays and stress, plus a short adult explanation
+// Event deck (adult-meaningful explanations)
 window.EVENT_DECK = [
   { cat:"INS", title:"Prior auth requested", baseDays: 7, stress: 3, why:"Authorization delays can happen even when care is medically urgent." },
   { cat:"INS", title:"Claim needs review", baseDays: 5, stress: 2, why:"Administrative review can slow scheduling and approvals." },
   { cat:"INS", title:"Denied, must appeal", baseDays: 12, stress: 4, why:"Appeals add extra steps and time before treatment can start." },
 
   { cat:"ADM", title:"Paperwork missing", baseDays: 4, stress: 2, why:"One missing form can reset the process." },
-  { cat:"ADM", title:"Referral fax not received", baseDays: 6, stress: 3, why:"Outdated systems create repeat work and lost time." },
+  { cat:"ADM", title:"Referral not received", baseDays: 6, stress: 3, why:"Outdated systems create repeat work and lost time." },
   { cat:"ADM", title:"Wrong code on form", baseDays: 5, stress: 2, why:"Small errors can cause rework and resubmission." },
 
   { cat:"TRN", title:"Ride canceled last minute", baseDays: 3, stress: 3, why:"Transportation breakdowns cause missed appointments." },
@@ -43,7 +43,7 @@ window.EVENT_DECK = [
   { cat:"CLN", title:"Scan rescheduled", baseDays: 6, stress: 2, why:"One reschedule can cascade into more delays." }
 ];
 
-// Sticker supports (inventory items) earned at some steps
+// Support stickers (inventory chips)
 window.STICKERS = [
   { key:"NAV", name:"Navigator", ico:"🧭" },
   { key:"RIDE", name:"Ride Voucher", ico:"🚗" },
